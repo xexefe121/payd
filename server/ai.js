@@ -6,6 +6,7 @@
 //  4. Merchant Copilot     - agent with tools over PayPal sales data; money-moving actions
 //                            (refunds, payouts) are proposed by the agent and executed only after
 //                            the merchant approves them in the UI (human in the loop).
+//  5. Ask your ledger      - natural language -> AG Grid filter/sort state over PayPal transactions
 //
 // Every feature has a deterministic fallback (server/heuristics.js) so the demo runs without a key.
 
@@ -13,6 +14,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { betaTool } from '@anthropic-ai/sdk/helpers/beta/json-schema';
 import { EventEmitter } from 'node:events';
 import { parseOrderHeuristic, cartTotal } from './heuristics.js';
+import { GRID_COLUMNS, GRID_SPEC_SCHEMA, gridSpecHeuristic, toGridState } from './gridquery.js';
 
 export const events = new EventEmitter();
 
@@ -413,4 +415,37 @@ export function summarize(transactions, days = 7) {
     topItems,
     busiestHours: busiest,
   };
+}
+
+// ---------------------------------------------------------------- 5. ask your ledger
+
+/**
+ * Turn a merchant's question into AG Grid state for the live ledger.
+ * ctx = { today: 'YYYY-MM-DD', payers: [names], methods: [labels] }
+ */
+export async function gridQuery(question, ctx) {
+  const fallback = () => ({ ...toGridState(gridSpecHeuristic(question, ctx)), source: 'rules' });
+  if (!enabled) return fallback();
+  const columns = Object.entries(GRID_COLUMNS)
+    .map(([id, c]) => `${id} (${c.type}): ${c.label}`)
+    .join('\n');
+  try {
+    const spec = await structured('ledger', {
+      system:
+        "You control the filters and sorting of a merchant's PayPal transaction grid (AG Grid). " +
+        'Translate the question into column filters (at most 2 per column), sort order and an optional ' +
+        'quick-filter text. Dates are YYYY-MM-DD; "this week" means after today minus 7 days. ' +
+        'Text ops: equals, notEqual, contains, notContains. Number ops: equals, notEqual, greaterThan, ' +
+        'greaterThanOrEqual, lessThan, lessThanOrEqual, inRange. Date ops: equals, notEqual, greaterThan, ' +
+        'lessThan, inRange. valueTo is only for inRange, otherwise "". "explanation" is one short sentence ' +
+        'describing the resulting view, addressed to the merchant.',
+      content:
+        `COLUMNS\n${columns}\n\nTODAY: ${ctx.today}\nKNOWN CUSTOMERS: ${(ctx.payers || []).join(', ')}\n\n` +
+        `QUESTION: ${question}`,
+      schema: GRID_SPEC_SCHEMA,
+    });
+    return { ...toGridState(spec), source: 'claude' };
+  } catch {
+    return fallback();
+  }
 }

@@ -872,6 +872,7 @@ function viewActivity() {
         <div class="tile"><small>Avg ticket</small><b>${money(today.length ? total / today.length / 100 : 0)}</b></div>
       </div>`;
   }
+  if (isBiz) header += `<a class="btn ghost wide center" href="/dashboard?as=${esc(S.user.id)}" target="_blank" rel="noopener">Open live ledger (AG Grid) ↗</a>`;
   return `${header}<h3 class="section">${isBiz ? 'Payments received' : 'Activity'}</h3>${activityList(S.activity)}`;
 }
 

@@ -80,35 +80,56 @@ function seedTransactions() {
   const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   const tx = [];
   const now = Date.now();
-  const buyers = ['alice', 'ben', 'maya', 'walkin'];
-  for (let i = 0; i < 38; i++) {
-    const ts = now - Math.floor(rand() * 7 * 24 * 3600 * 1000) - 3600 * 1000;
+  // Regulars with Payd profiles plus walk-in PayPal customers.
+  const buyers = ['alice', 'ben', 'maya', 'Jordan Lee', 'Sam Rivera', 'Priya Shah', 'Tom Nguyen', 'Grace Kim', 'Leo Martin', 'Ava Brooks'];
+  const methods = ['bump', 'bump', 'bump', 'bump', 'nfc-tag', 'nfc-tag', 'qr', 'link'];
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  for (let i = 0; i < 160; i++) {
+    // 14 days of café hours (7am-6pm), weighted to the morning rush.
+    const day = Math.floor(rand() * 14);
+    const hour = 7 + Math.floor(rand() * rand() * 11);
+    let ts = startOfToday.getTime() - day * 86400000 + hour * 3600000 + Math.floor(rand() * 3600000);
+    if (ts > now - 60000) ts = now - Math.floor(rand() * 3 * 3600000) - 60000;
     const nItems = 1 + Math.floor(rand() * 3);
     const items = [];
     for (let j = 0; j < nItems; j++) {
       const p = CAFE_CATALOG[Math.floor(rand() * CAFE_CATALOG.length)];
       if (p.modifier) continue;
+      const qty = rand() > 0.85 ? 2 + Math.floor(rand() * 4) : 1; // occasional office order
       const existing = items.find((x) => x.sku === p.sku);
-      if (existing) existing.qty += 1;
-      else items.push({ sku: p.sku, name: p.name, qty: 1, unitPrice: p.price });
+      if (existing) existing.qty += qty;
+      else items.push({ sku: p.sku, name: p.name, qty, unitPrice: p.price });
     }
     if (!items.length) items.push({ sku: 'flat-white', name: 'Flat White', qty: 1, unitPrice: '4.50' });
     const cents = items.reduce((s, it) => s + Math.round(Number(it.unitPrice) * 100) * it.qty, 0);
-    const payerId = buyers[Math.floor(rand() * buyers.length)];
+    const buyer = buyers[Math.floor(rand() * buyers.length)];
+    const known = ['alice', 'ben', 'maya'].includes(buyer);
+    // Guard history: mostly low; big first-time orders score higher.
+    let score = 3 + Math.floor(rand() * 18) + (cents > 3000 ? 28 : 0) + (!known && rand() > 0.8 ? 14 : 0);
+    if (rand() > 0.985) score = 62 + Math.floor(rand() * 20);
+    score = Math.min(95, score);
+    const level = score < 30 ? 'low' : score < 60 ? 'medium' : 'high';
+    const r = rand();
+    const status = r > 0.965 ? 'refunded' : r > 0.95 ? 'partially_refunded' : 'completed';
+    const refundedAmount =
+      status === 'refunded' ? (cents / 100).toFixed(2) : status === 'partially_refunded' ? (Number(items[0].unitPrice)).toFixed(2) : undefined;
     tx.push({
       id: id('tx'),
-      payerId: payerId === 'walkin' ? null : payerId,
-      payerName: payerId === 'walkin' ? 'Walk-in customer' : null,
+      payerId: known ? buyer : null,
+      payerName: known ? null : buyer,
       payeeId: 'cafe',
       amount: (cents / 100).toFixed(2),
       currency: 'USD',
       items,
       note: '',
-      method: rand() > 0.3 ? 'bump' : 'nfc-tag',
-      status: rand() > 0.95 ? 'refunded' : 'completed',
+      method: methods[Math.floor(rand() * methods.length)],
+      status,
+      refundedAmount,
+      guard: { level, score, source: 'rules' },
       createdAt: ts,
       completedAt: ts,
-      paypal: { mode: 'seed', orderId: 'SEED' + i, captureId: 'SEEDCAP' + i },
+      paypal: { mode: 'seed', orderId: 'SEED' + String(i).padStart(4, '0'), captureId: 'SEEDCAP' + String(i).padStart(4, '0') },
       seeded: true,
     });
   }

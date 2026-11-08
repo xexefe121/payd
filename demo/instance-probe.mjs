@@ -1,7 +1,7 @@
 // Opens pairs of WebSocket connections to a deployment and reports which server
 // instance each lands on. Usage: node demo/instance-probe.mjs https://host [pairs]
 import { WebSocket } from 'ws';
-const U = process.argv[2].replace('https', 'wss') + '/ws';
+const U = process.argv[2].replace(/^http/, 'ws') + '/ws';
 const pairs = Number(process.argv[3] || 6);
 const open = (id) =>
   new Promise((resolve, reject) => {

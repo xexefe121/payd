@@ -6,6 +6,8 @@
 
 ![Two-phone simulator](docs/screenshot-sim.png)
 
+![Merchant live ledger built on AG Grid](docs/screenshot-ledger.png)
+
 ---
 
 ## Why
@@ -53,6 +55,8 @@ sequenceDiagram
 | **✦ Payd Guard (Claude)** | Every tap is reviewed before money moves. Instant rule signals (amount vs. your history, tap limit, first-time payee, tap velocity, ambiguous pairing, GPS distance) feed into a Claude review. Claude explains the risk to the payer in plain language. High-risk taps need an explicit acknowledgement, and `block` is enforced on the server. |
 | **✦ Merchant Copilot (Claude agent)** | "How did we do today?", "Top sellers this week?", "Ring up 2 lattes and a croissant", "Refund Alice, her coffee was cold", "Pay supplier@beans.co $120". Claude uses tools over the merchant's PayPal transactions. **Money-moving tools only *propose* actions.** The merchant approves each refund or payout in the UI (human in the loop). |
 | **One-touch after first use** | First payment is approved with PayPal Smart Buttons and saves the PayPal wallet with **PayPal Vault** (`store_in_vault: ON_SUCCESS`). Later taps charge the vaulted wallet instantly, Apple-Pay style. |
+| **Live ledger (AG Grid)** | `/dashboard`: the merchant's back office, built on **AG Grid Community**. Every PayPal transaction sits in one grid with customer, items, amount, payment method, **Payd Guard score** and PayPal capture ID. New taps **stream in live** over the WebSocket and flash into the grid. Each row has a **Refund** button (full or partial, through PayPal), and KPIs plus a pinned totals row recalculate for whatever is filtered. |
+| **✦ Ask your ledger (Claude × AG Grid)** | Type *"refunds over $10 this week"* or *"riskiest taps over $20"*. Claude turns the sentence into a validated AG Grid filter model and sort state, and the grid reshapes on the spot. The Copilot sits beside the grid, and the row behind each refund it proposes is highlighted. |
 | **Two-phone simulator** | `/sim` runs two live phones side by side. Drag one onto the other (or press Space) and watch the server log: taps, clock skew, match Δt, Guard verdict, every PayPal API call and every Claude call. |
 
 ## PayPal integration
@@ -76,6 +80,7 @@ With no PayPal keys, Payd runs a **faithful mock**. It keeps the same call shape
 All in `server/ai.js`, using the official `@anthropic-ai/sdk`:
 
 - **Structured outputs** (`output_config.format: json_schema`) for checkout carts, receipt extraction (vision) and Guard verdicts. The responses are typed and validated, with no fragile parsing.
+- **Grid control**: "Ask your ledger" returns a JSON spec (column, op, value) that `server/gridquery.js` validates and converts into an AG Grid `filterModel` and column sort state.
 - **Tool runner** (`client.beta.messages.toolRunner`) for the Copilot agent with five tools: `sales_summary`, `list_transactions`, `ring_up`, `propose_refund`, `propose_payout`.
 - **Server-side refusal fallbacks** (`fallbacks: "default"`) so a declined request is retried on Anthropic's recommended fallback model inside the same call.
 - Default model `claude-opus-5-5` (override with `PAYD_MODEL`), low effort for the latency-sensitive Guard and checkout calls.
@@ -92,7 +97,8 @@ npm start
 ```
 
 - App: http://localhost:3000. Pick a profile (Alice, Ben, Maya or Bean There Café).
-- **Two-phone simulator: http://localhost:3000/sim**. Choose a scenario (Café checkout, Friend to friend, Split the bill) and drag one phone onto the other.
+- **Two-phone simulator: http://localhost:3000/sim**.
+- **Merchant live ledger: http://localhost:3000/dashboard?as=cafe**. Keep it open next to the simulator and watch taps land in the grid. Choose a scenario (Café checkout, Friend to friend, Split the bill) and drag one phone onto the other.
 - Desktop without a motion sensor: press **T** (or click the tap area) in a single-phone window.
 
 ### Turn on the real services
@@ -117,7 +123,7 @@ For one-touch vaulted payments, enable **"Save payment methods"** on the sandbox
 
 Motion sensors and Web NFC need **HTTPS**. The quickest options:
 
-- Deploy to Render with the included `render.yaml` (one click, free tier), or
+- Deploy to Render with the included `render.yaml` (New → Blueprint → this repo). It runs as one always-on Node process, so both phones share the same tap matcher. On serverless hosts (e.g. Vercel), connections spread across instances and taps from two phones may never meet. Or
 - Tunnel your laptop with `npx cloudflared tunnel --url http://localhost:3000` (or ngrok).
 
 Open the HTTPS URL on two phones, pick two profiles, tap **Enable tap to pay** (iOS asks for motion permission), then knock the phones together.
@@ -128,7 +134,7 @@ Open the HTTPS URL on two phones, pick two profiles, tap **Enable tap to pay** (
 npm test
 ```
 
-There are 23 tests: tap matching (time window, geo gate, ambiguity, expiry), order parsing, Guard rules, money math, the Claude integration against a fake transport (request shape, structured outputs, refusal fallbacks, the copilot tool loop with proposal-only refunds), and a full **end-to-end** run that boots the server, connects two WebSocket "phones", taps, pays, refunds, pays through an NFC sticker link and collects a split.
+There are 26 tests: tap matching (time window, geo gate, ambiguity, expiry), order parsing, Guard rules, money math, natural-language → AG Grid filter conversion, the Claude integration against a fake transport (request shape, structured outputs, refusal fallbacks, the copilot tool loop with proposal-only refunds), and a full **end-to-end** run that boots the server, connects two WebSocket "phones", taps, pays, refunds, pays through an NFC sticker link and collects a split.
 
 ## Project layout
 
@@ -137,7 +143,8 @@ server/
   index.js       Express + WebSocket server, payment intents, REST API
   tapmatch.js    Tap pairing engine (time window, geo gate, ambiguity)
   paypal.js      PayPal REST client (Orders v2, Vault, Refunds, Payouts) + mock
-  ai.js          Claude features (checkout, receipts, Guard, Copilot agent)
+  ai.js          Claude features (checkout, receipts, Guard, Copilot agent, ledger queries)
+  gridquery.js   Natural language -> AG Grid filter/sort state (validation + rule fallback)
   heuristics.js  Deterministic fallbacks for every AI feature
   store.js       JSON-file store with seeded demo data
 public/
@@ -146,6 +153,7 @@ public/
   js/sensor.js   Accelerometer bump detection
   js/net.js      REST + realtime socket with clock sync
   sim.html       Two-phone simulator with live server log
+  dashboard.html Merchant live ledger (AG Grid) + Ask your ledger + Copilot
 test/            node:test suites (unit + e2e)
 ```
 

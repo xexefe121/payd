@@ -2,7 +2,7 @@
 // Usage: node demo/remote-check.mjs https://your-deployment.vercel.app
 import { WebSocket } from 'ws';
 const U = process.argv[2];
-const WSU = U.replace('https', 'wss') + '/ws';
+const WSU = U.replace(/^http/, 'ws') + '/ws';
 function phone(userId) {
   const ws = new WebSocket(WSU);
   const inbox = [];

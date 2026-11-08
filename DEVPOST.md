@@ -26,6 +26,18 @@ Payd turns any phone into a PayPal terminal.
 3. **Payd Guard**: before any money moves, every tap is reviewed. Instant rule signals (amount vs. your history, your tap limit, first-time payee, tap velocity, ambiguous pairing, GPS distance) feed a Claude review, and Claude explains the risk to the payer in plain English. High-risk taps require an explicit "I know them and the amount is right". `block` is enforced on the server.
 4. **Merchant Copilot**: an agent with tools over the merchant's PayPal transactions. "How did we do today?", "Top sellers this week?", "Ring up 2 lattes and a croissant", "Refund Alice, her coffee was cold", "Pay supplier@beans.co $120". **The agent can't move money on its own.** Refund and payout tools create proposals, and the merchant approves each one. This is agentic commerce with a human in the loop.
 
+### The merchant's back office (AG Grid)
+
+**Live ledger** (`/dashboard`): an **AG Grid** of every PayPal transaction.
+- New taps stream in and flash as they land.
+- Each row carries the payment method, a Payd Guard risk pill and the PayPal capture ID.
+- **Refunds** (full or partial) go through PayPal straight from the row.
+- KPIs and a pinned totals row recalculate for the current filter.
+
+**✦ Ask your ledger**: *"refunds over $10 this week"*, *"riskiest taps over $20"* or *"Alice's NFC sticker payments today"*.
+- Claude converts the sentence into a validated AG Grid filter model and sort state, and the grid reshapes instantly.
+- The Copilot panel beside it highlights the exact row behind each refund it proposes.
+
 ## How we built it
 
 - **Frontend**: a dependency-free PWA (vanilla ES modules) that installs to the home screen on iOS and Android. Accelerometer bump detection uses a jerk + magnitude impulse detector that ignores sustained shaking. NTP-style clock sync runs over WebSocket. Press-and-hold confirmation, WebAudio chimes and haptics complete the experience.
@@ -44,8 +56,9 @@ Payd turns any phone into a PayPal terminal.
   - low effort for the latency-critical Guard and checkout calls
 
   Every AI feature has a deterministic fallback, so the payment path never waits on a model: the Guard shows the rule verdict instantly and Claude refines it a moment later.
+- **AG Grid Community 36**: themed dark grid with custom cell renderers (customer avatars, method, Guard and status pills, refund buttons), date/number/text column filters driven programmatically from Claude's output, `applyTransaction` + `flashCells` for live rows, and a pinned totals row.
 - **Two-phone simulator** (`/sim`): two live phones side by side. Drag one onto the other, and a live server log shows each tap's clock skew, the match Δt, the Guard verdict, every PayPal API call and every Claude call.
-- **Tests**: 23 `node:test` cases, including an end-to-end run with two WebSocket "phones" that tap, pay, refund, pay via an NFC sticker link and collect a split. The Claude integration is tested against a fake transport.
+- **Tests**: 26 `node:test` cases, including an end-to-end run with two WebSocket "phones" that tap, pay, refund, pay via an NFC sticker link and collect a split. The Claude integration is tested against a fake transport.
 
 ## Challenges we ran into
 
@@ -74,7 +87,7 @@ Payd turns any phone into a PayPal terminal.
 
 ## Built with
 
-`paypal-orders-v2` · `paypal-vault` · `paypal-js-sdk` · `paypal-payouts` · `paypal-refunds` · `claude` · `anthropic-sdk` · `node.js` · `express` · `websockets` · `pwa` · `devicemotion` · `web-nfc`
+`ag-grid` · `paypal-orders-v2` · `paypal-vault` · `paypal-js-sdk` · `paypal-payouts` · `paypal-refunds` · `claude` · `anthropic-sdk` · `node.js` · `express` · `websockets` · `pwa` · `devicemotion` · `web-nfc`
 
 ## AI tools used (required disclosure)
 
@@ -83,6 +96,7 @@ Payd turns any phone into a PayPal terminal.
   - receipt extraction (vision + structured outputs)
   - Payd Guard risk review (structured outputs)
   - the Merchant Copilot agent (tool use via the SDK tool runner)
+  - "Ask your ledger" natural language → AG Grid filters (structured outputs)
   - server-side refusal fallbacks on every call
 - **Claude Code** was used as a coding assistant while building the project.
 

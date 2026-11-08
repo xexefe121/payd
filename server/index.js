@@ -23,6 +23,8 @@ store.load();
 const app = express();
 app.use(express.json({ limit: '15mb' }));
 app.use(express.static(PUBLIC_DIR, { extensions: ['html'] }));
+// AG Grid Community (MIT) served from node_modules, no CDN needed.
+app.use('/vendor/ag-grid', express.static(path.join(here, '..', 'node_modules', 'ag-grid-community', 'dist'), { maxAge: '7d' }));
 
 const server = http.createServer(app);
 // No path filter: on Vercel the upgrade arrives through a rewrite (/ws -> /api/server).
@@ -471,7 +473,8 @@ app.patch('/api/users/:id', (req, res) => {
 });
 
 app.get('/api/users/:id/activity', (req, res) => {
-  res.json(store.transactionsFor(req.params.id, 80).map((t) => labelTx(t, req.params.id)));
+  const limit = Math.min(Math.max(Number(req.query.limit) || 80, 1), 500);
+  res.json(store.transactionsFor(req.params.id, limit).map((t) => labelTx(t, req.params.id)));
 });
 
 // ---- terminal links (NFC sticker / QR / shared link)
@@ -769,6 +772,24 @@ function merchantDeps(user) {
     },
   };
 }
+
+const METHOD_LABELS = { bump: 'Phone tap', sim: 'Phone tap', 'nfc-tag': 'NFC sticker', qr: 'QR code', link: 'Pay link' };
+
+app.post(
+  '/api/ai/grid',
+  wrap(async (req, res) => {
+    const user = store.getUser(req.body.userId);
+    if (!user) return res.status(404).json({ error: 'Unknown user' });
+    const question = String(req.body.question || '').trim().slice(0, 300);
+    if (!question) return res.status(400).json({ error: 'Ask something about your payments' });
+    const today = /^\d{4}-\d{2}-\d{2}$/.test(req.body.today) ? req.body.today : new Date().toISOString().slice(0, 10);
+    const received = store.getDb().transactions.filter((t) => t.payeeId === user.id).map((t) => labelTx(t, user.id));
+    const payers = [...new Set(received.map((t) => t.payerLabel))].slice(0, 40);
+    const out = await ai.gridQuery(question, { today, payers, methods: Object.values(METHOD_LABELS) });
+    log('ai-grid', { question, source: out.source, filters: Object.keys(out.filterModel) });
+    res.json(out);
+  }),
+);
 
 app.post(
   '/api/ai/copilot',

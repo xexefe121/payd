@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Payd Ledger</title>
+    <link rel="icon" href="/img/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/css/dashboard.css" />
+  </head>
+  <body>
+    <header class="bar">
+      <div class="brand"><span class="logo">P</span><b>Payd</b><span class="muted">Live ledger</span></div>
+      <div class="merchant" id="merchant"></div>
+      <div class="env" id="env"><span id="net" class="net"></span></div>
+    </header>
+
+    <section class="kpis" id="kpis"></section>
+
+    <section class="ask">
+      <form id="ask-form" autocomplete="off">
+        <span class="spark">✦</span>
+        <input id="ask" placeholder="Ask your ledger: “refunds over $10 this week”, “Alice’s payments today”, “riskiest taps”" />
+        <button class="btn primary" type="submit" id="ask-btn">Ask</button>
+        <button class="btn ghost" type="button" id="reset">Reset view</button>
+      </form>
+      <div class="chips" id="chips"></div>
+      <div class="explain" id="explain"></div>
+    </section>
+
+    <main class="main">
+      <div class="grid-wrap"><div id="grid" class="grid"></div></div>
+      <aside class="copilot">
+        <div class="copilot-head"><b>✦ Copilot</b><small class="muted">proposes, you approve</small></div>
+        <div class="chat" id="chat"></div>
+        <div class="chips small" id="copilot-chips"></div>
+        <form id="copilot-form" class="copilot-form" autocomplete="off">
+          <input id="copilot-input" placeholder="Refund Alice's last coffee…" />
+          <button class="btn primary" type="submit">Send</button>
+        </form>
+      </aside>
+    </main>
+
+    <div id="toast" class="toast"></div>
+    <script src="/vendor/ag-grid/ag-grid-community.min.js"></script>
+    <script type="module" src="/js/dashboard.js"></script>
+  </body>
+</html>
