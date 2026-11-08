@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Payd Simulator</title>
+    <link rel="icon" href="/img/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/css/sim.css" />
+  </head>
+  <body>
+    <header class="bar">
+      <div class="brand"><span class="logo">P</span><b>Payd</b><span class="muted">two-phone tap simulator</span></div>
+      <div class="scenarios">
+        <button data-scn="cafe" class="on">☕ Café checkout</button>
+        <button data-scn="p2p">👥 Friend to friend</button>
+        <button data-scn="split">🧾 Split the bill</button>
+      </div>
+      <div class="env" id="env"></div>
+    </header>
+    <main class="wrap">
+      <section class="phones" id="phones">
+        <div class="phone" id="phoneA">
+          <div class="handle" title="Drag me onto the other phone">
+            <select id="selA"></select>
+            <span class="grip">⠿ drag</span>
+          </div>
+          <div class="screen"><iframe id="frameA" title="Phone A" allow="clipboard-write; microphone"></iframe></div>
+        </div>
+        <div class="middle">
+          <button id="bump" class="bump">Tap phones<br /><small>Space</small></button>
+          <div class="hint">or drag one phone onto the other</div>
+          <div class="spark" id="spark"></div>
+        </div>
+        <div class="phone" id="phoneB">
+          <div class="handle" title="Drag me onto the other phone">
+            <select id="selB"></select>
+            <span class="grip">⠿ drag</span>
+          </div>
+          <div class="screen"><iframe id="frameB" title="Phone B" allow="clipboard-write; microphone"></iframe></div>
+        </div>
+      </section>
+      <aside class="log">
+        <div class="log-head"><b>Live server log</b><button id="clear">clear</button></div>
+        <div id="log"></div>
+        <div class="log-foot">Each phone reports its tap on the server clock. The server pairs a <b>pay</b> tap with a <b>receive</b> tap that land within 900 ms (and within 250 m when GPS is shared), then PayPal moves the money.</div>
+      </aside>
+    </main>
+    <script type="module" src="/js/sim.js"></script>
+  </body>
+</html>

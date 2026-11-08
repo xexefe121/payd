@@ -1,0 +1,14 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "outputDirectory": "public",
+  "cleanUrls": true,
+  "functions": {
+    "api/server.js": { "maxDuration": 300 }
+  },
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api/server" },
+    { "source": "/ws", "destination": "/api/server" },
+    { "source": "/healthz", "destination": "/api/server" },
+    { "source": "/t/:id", "destination": "/" }
+  ]
+}
