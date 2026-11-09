@@ -63,6 +63,7 @@ Payd turns any phone into a PayPal terminal.
 
   Every AI feature has a deterministic fallback, so the payment path never waits on a model: the Guard shows the rule verdict instantly and Claude refines it a moment later.
 - **AG Grid Community 36**: themed dark grid with custom cell renderers (customer avatars, method, Guard and status pills, refund buttons), date/number/text column filters driven programmatically from Claude's output, `applyTransaction` + `flashCells` for live rows, and a pinned totals row.
+- **Render**: the live demo runs as one always-on Node web service from a `render.yaml` Blueprint. Tap pairing needs both phones on the same process, which serverless hosts split across instances.
 - **Two-phone simulator** (`/sim`): two live phones side by side. Drag one onto the other, and a live server log shows each tap's clock skew, the match Δt, the Guard verdict, every PayPal API call and every Claude call.
 - **Tests**: 26 `node:test` cases, including an end-to-end run with two WebSocket "phones" that tap, pay, refund, pay via an NFC sticker link and collect a split. The Claude integration is tested against a fake transport.
 

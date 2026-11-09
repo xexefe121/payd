@@ -93,6 +93,16 @@ All in `server/ai.js`, using the official `@anthropic-ai/sdk`:
 - Default model `claude-opus-5-5` (override with `PAYD_MODEL`), low effort for the latency-sensitive Guard and checkout calls.
 - **Every AI feature has a deterministic fallback** (`server/heuristics.js`). The app never blocks on the model: Guard shows the rule verdict instantly and Claude refines it a moment later.
 
+## Sponsor tools
+
+- **AG Grid Community 36** (`public/js/dashboard.js`) powers the merchant's live ledger:
+  - Quartz dark theme and custom cell renderers.
+  - Per-row PayPal refund buttons.
+  - Live rows via `applyTransaction` + `flashCells`.
+  - A pinned totals row.
+  - Claude-driven `setFilterModel` / `applyColumnState` for "Ask your ledger".
+- **Render** hosts the live demo from `render.yaml`, a Blueprint for a single always-on Node web service with a `/healthz` health check. The server keeps the tap matcher and WebSocket sessions in memory, so it needs one long-running process: both phones must reach the same instance, which serverless hosts can't guarantee.
+
 ## Run it
 
 Requires Node 20+.
