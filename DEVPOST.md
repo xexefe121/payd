@@ -2,6 +2,12 @@
 
 **Tagline:** Tap two phones together. Get paid with PayPal. Any iPhone, any Android, no hardware.
 
+**Try it:**
+- Live app: https://payd-jj0q.onrender.com
+- Two-phone simulator: https://payd-jj0q.onrender.com/sim
+- Café live ledger: https://payd-jj0q.onrender.com/dashboard?as=cafe
+- Code: https://github.com/xexefe121/payd
+
 ---
 
 ## Inspiration

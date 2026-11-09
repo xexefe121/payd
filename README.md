@@ -4,6 +4,13 @@
 
 > Built for the [PayPal AI Hackathon 2026](https://paypalaihackathon.devpost.com/). It uses **PayPal Orders v2 + Vault + Refunds + Payouts** (sandbox) for the money and **Claude** for the intelligence.
 
+**Try it live: https://payd-jj0q.onrender.com**
+- Open it on two phones to tap and pay.
+- [Two-phone simulator](https://payd-jj0q.onrender.com/sim) for a single desktop.
+- [Café live ledger (AG Grid)](https://payd-jj0q.onrender.com/dashboard?as=cafe).
+
+The demo runs on Render's free tier, so the first visit after idle can take about 50 seconds to wake up, and demo data resets on each restart.
+
 ![Two-phone simulator](docs/screenshot-sim.png)
 
 ![Merchant live ledger built on AG Grid](docs/screenshot-ledger.png)
