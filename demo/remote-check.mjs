@@ -1,5 +1,5 @@
 // Smoke test a deployed Payd: two WebSocket "phones" tap, pay and settle.
-// Usage: node demo/remote-check.mjs https://your-deployment.vercel.app
+// Usage: node demo/remote-check.mjs https://payd-jj0q.onrender.com
 import { WebSocket } from 'ws';
 const U = process.argv[2];
 const WSU = U.replace(/^http/, 'ws') + '/ws';
@@ -21,7 +21,27 @@ a.send({ type: 'tap', t, method: 'bump' }); c.send({ type: 'tap', t: t + 30, met
 const { intent } = await a.wait('intent:new');
 console.log('matched', intent.id, intent.amount, 'dt', intent.match.dt);
 const r = await fetch(`${U}/api/intents/${intent.id}/pay`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ userId: 'alice' }) });
-console.log('pay', r.status, (await r.json()).status);
-const done = await c.wait('intent:completed');
-console.log('payee completed', done.tx.amount, done.tx.paypal.captureId);
-a.ws.close(); c.ws.close();
+try {
+  const result = await r.json();
+  console.log('pay', r.status, result.status);
+  if (!r.ok) throw new Error(result.error || `Payment request failed: ${r.status}`);
+  if (result.status === 'needs_approval') {
+    const orderResponse = await fetch(`${U}/api/intents/${intent.id}/order`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ userId: 'alice' }),
+    });
+    const order = await orderResponse.json();
+    if (!orderResponse.ok || !order.id) {
+      throw new Error(order.error || `PayPal order creation failed: ${orderResponse.status}`);
+    }
+    console.log('sandbox order created', order.id, '(buyer approval still required)');
+  } else if (result.status === 'completed') {
+    const done = await c.wait('intent:completed');
+    console.log('payee completed', done.tx.amount, done.tx.paypal.captureId);
+  } else {
+    throw new Error(`Unexpected payment status: ${result.status}`);
+  }
+} finally {
+  a.ws.close(); c.ws.close();
+}
