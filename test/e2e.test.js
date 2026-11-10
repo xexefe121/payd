@@ -98,6 +98,34 @@ test('two phones tap, payer confirms, PayPal order is captured', async () => {
   cafe.ws.close();
 });
 
+test('full-page PayPal return checks the order and captures only once', async () => {
+  const created = await post('/api/terminal/cafe/pay', { payerId: 'maya', amount: '4.50', method: 'link' });
+  assert.equal(created.status, 200);
+  const intentId = created.json.id;
+  const order = await post(`/api/intents/${intentId}/order`, { userId: 'maya' });
+  assert.equal(order.status, 200);
+  const returnUrl = `${BASE}/paypal/return/${intentId}?token=${order.json.id}`;
+  const wrong = await fetch(`${BASE}/paypal/return/${intentId}?token=wrong`, { redirect: 'manual' });
+  assert.equal(wrong.status, 400);
+  const [first, concurrentCapture] = await Promise.all([
+    fetch(returnUrl, { redirect: 'manual' }),
+    post(`/api/intents/${intentId}/capture`, { userId: 'maya', orderId: order.json.id }),
+  ]);
+  assert.equal(first.status, 302);
+  assert.equal(concurrentCapture.status, 200);
+  const receipt = new URL(first.headers.get('location'), BASE);
+  assert.equal(receipt.searchParams.get('as'), 'maya');
+  assert.ok(receipt.searchParams.get('receipt'));
+  const repeated = await fetch(returnUrl, { redirect: 'manual' });
+  assert.equal(repeated.status, 302);
+  assert.equal(repeated.headers.get('location'), first.headers.get('location'));
+  const activity = await (await fetch(`${BASE}/api/users/maya/activity`)).json();
+  const payments = activity.filter((tx) => tx.intentId === intentId);
+  assert.equal(payments.length, 1);
+  assert.equal(payments[0].status, 'completed');
+  assert.ok(payments[0].paypal.captureId);
+});
+
 test('taps that are too far apart in time do not pair', async () => {
   const ben = phone('ben');
   const maya = phone('maya');

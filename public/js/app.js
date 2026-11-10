@@ -94,6 +94,11 @@ async function boot() {
   if (S.link && S.user) loadLink();
   if (S.user) refreshActivity();
   render();
+  if (S.user && qs.get('receipt')) {
+    await refreshActivity();
+    const tx = S.activity.find((item) => item.id === qs.get('receipt'));
+    if (tx?.status === 'completed') onCompleted({ payer: tx.payer, payee: tx.payee, note: tx.note, method: tx.method }, tx);
+  }
 }
 
 function applyUserDefaults() {
@@ -366,6 +371,25 @@ async function submitSheetAmount() {
     renderSheet();
   } catch (err) {
     toast(err.message, 'bad');
+  }
+}
+
+async function paypalRedirect() {
+  if (!S.intent || S.paying) return;
+  S.paying = true;
+  renderSheet();
+  try {
+    const order = await api(`/api/intents/${S.intent.id}/order`, { userId: S.user.id });
+    const approval = new URL(order.approvalUrl);
+    if (approval.protocol !== 'https:' || !['www.sandbox.paypal.com', 'sandbox.paypal.com', 'www.paypal.com', 'paypal.com'].includes(approval.hostname)) {
+      throw new Error('PayPal approval link unavailable');
+    }
+    // Leave an embedded simulator phone for a normal full-page approval.
+    window.top.location.assign(approval.href);
+  } catch (err) {
+    S.paying = false;
+    toast(err.message || 'Could not open PayPal', 'bad');
+    renderSheet();
   }
 }
 
@@ -1147,12 +1171,13 @@ function viewPaySheet() {
             : ''
         }
         <div id="pp-buttons" class="${S.needsApproval ? 'show' : ''}"></div>
+        ${S.needsApproval ? `<button class="btn secondary wide" data-action="paypal-redirect" ${S.paying ? 'disabled' : ''}>Open PayPal in this tab</button>` : ''}
         <button class="btn ghost wide" data-action="decline">Cancel</button>
         <p class="fine center">${
           sandbox
             ? i.payerPaypalLinked
               ? 'One-touch · PayPal wallet saved with Vault'
-              : 'First tap: approve once, Payd saves PayPal for one-touch next time'
+              : S.config.paypal.vault ? 'First tap: approve once, Payd saves PayPal for one-touch next time' : 'Approve this payment securely with PayPal'
             : 'PayPal sandbox simulated · add API keys for live sandbox'
         }</p>
       </div>
@@ -1295,6 +1320,7 @@ const actions = {
   },
   'cancel-charge': cancelCharge,
   'sheet-amount': submitSheetAmount,
+  'paypal-redirect': paypalRedirect,
   ack: (el) => {
     S.ack = el.checked;
     renderSheet();

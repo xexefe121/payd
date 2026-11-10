@@ -21,6 +21,8 @@ const CURRENCY = process.env.PAYD_CURRENCY || 'USD';
 store.load();
 
 const app = express();
+// Render terminates HTTPS one proxy hop before the Node process.
+app.set('trust proxy', 1);
 app.use(express.json({ limit: '15mb' }));
 app.use(express.static(PUBLIC_DIR, { extensions: ['html'] }));
 // AG Grid Community (MIT) served from node_modules, no CDN needed.
@@ -295,8 +297,8 @@ function orderOptions(intent, req) {
     description: `Payd tap · ${payee?.name}${intent.note ? ' · ' + intent.note : ''}`,
     referenceId: intent.id,
     items: intent.items,
-    returnUrl: `${origin}/?paid=${intent.id}`,
-    cancelUrl: `${origin}/?cancel=${intent.id}`,
+    returnUrl: `${origin}/paypal/return/${intent.id}`,
+    cancelUrl: `${origin}/?as=${encodeURIComponent(intent.payerId)}`,
   };
 }
 
@@ -578,7 +580,43 @@ app.post(
     if (!intent) return;
     const order = await paypal.createOrder(orderOptions(intent, req));
     intent.orderId = order.id;
-    res.json({ id: order.id });
+    const approvalUrl = order.links?.find((link) => link.rel === 'payer-action' || link.rel === 'approve')?.href || null;
+    res.json({ id: order.id, approvalUrl });
+  }),
+);
+
+async function captureIntent(intent) {
+  if (intent.status === 'completed') return store.getTransaction(intent.txId);
+  if (!intent.capturePromise) {
+    intent.capturePromise = (async () => {
+      intent.status = 'processing';
+      notifyIntent(intent);
+      const captured = paypal.extractCapture(await paypal.captureOrder(intent.orderId));
+      if (captured.status !== 'COMPLETED') {
+        throw Object.assign(new Error(`Payment ${captured.status}`), { status: 402 });
+      }
+      return completeIntent(intent, { ...captured, settledTo: settledTo(intent) });
+    })().catch((error) => {
+      intent.status = 'awaiting_payer';
+      notifyIntent(intent);
+      delete intent.capturePromise;
+      throw error;
+    });
+  }
+  return intent.capturePromise;
+}
+
+// Full-page approval is a fallback for browsers where the SDK popup cannot load.
+// PayPal still enforces buyer approval before the server can capture this order.
+app.get(
+  '/paypal/return/:id',
+  wrap(async (req, res) => {
+    const intent = intents.get(req.params.id);
+    if (!intent) return res.status(404).send('This tap has expired. Open Payd and tap again.');
+    if (!req.query.token || req.query.token !== intent.orderId) return res.status(400).send('PayPal order mismatch.');
+    if (intent.guard?.action === 'block') return res.status(403).send('Payd Guard blocked this payment.');
+    const tx = await captureIntent(intent);
+    res.redirect(`/?as=${encodeURIComponent(intent.payerId)}&receipt=${encodeURIComponent(tx.id)}`);
   }),
 );
 
@@ -589,15 +627,7 @@ app.post(
     if (!intent) return;
     const orderId = req.body.orderId || intent.orderId;
     if (!orderId || orderId !== intent.orderId) return res.status(400).json({ error: 'Order mismatch' });
-    intent.status = 'processing';
-    notifyIntent(intent);
-    const captured = paypal.extractCapture(await paypal.captureOrder(orderId));
-    if (captured.status !== 'COMPLETED') {
-      intent.status = 'awaiting_payer';
-      notifyIntent(intent);
-      return res.status(402).json({ error: `Payment ${captured.status}` });
-    }
-    const tx = completeIntent(intent, { ...captured, settledTo: settledTo(intent) });
+    const tx = await captureIntent(intent);
     res.json({ status: 'completed', tx: labelTx(tx, intent.payerId) });
   }),
 );
