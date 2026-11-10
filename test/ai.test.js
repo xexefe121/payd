@@ -61,8 +61,13 @@ test('buildCart sends a structured-output request and maps SKUs to the catalog',
   const req = calls[0];
   assert.equal(req.body.model, ai.MODEL);
   assert.equal(req.body.output_config.format.type, 'json_schema');
-  assert.equal(req.body.fallbacks, 'default');
-  assert.match(req.headers['anthropic-beta'], /server-side-fallback-2026-07-01/);
+  if (ai.MODEL.startsWith('claude-haiku-')) {
+    assert.equal(req.body.fallbacks, undefined);
+    assert.doesNotMatch(req.headers['anthropic-beta'] || '', /server-side-fallback/);
+  } else {
+    assert.equal(req.body.fallbacks, 'default');
+    assert.match(req.headers['anthropic-beta'], /server-side-fallback-2026-07-01/);
+  }
   assert.match(req.body.messages[0].content, /flat-white \| Flat White \| \$4\.50/);
 });
 
@@ -116,6 +121,9 @@ test('copilot runs the tool loop and only proposes refunds', async () => {
   assert.equal(r.actions.length, 1);
   assert.deepEqual(proposals, [{ transactionId: 'tx_1', amount: undefined, reason: 'cold coffee' }]);
   assert.equal(calls.length, 3);
+  if (ai.MODEL.startsWith('claude-haiku-')) {
+    assert.ok(calls.every(({ body }) => body.model === ai.MODEL && body.fallbacks === undefined));
+  }
   // tool results were sent back to Claude
   const last = calls[2].body.messages.at(-1);
   assert.equal(last.role, 'user');

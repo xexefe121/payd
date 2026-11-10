@@ -54,11 +54,11 @@ Payd turns any phone into a PayPal terminal.
   - **Smart Payment Buttons** (JS SDK) for first-time approval.
   - **Refunds** (`/v2/payments/captures/{id}/refund`) from the Sales tab and the Copilot.
   - **Payouts** (`/v1/payments/payouts`) for Copilot-proposed supplier payments.
-- **Claude** (`@anthropic-ai/sdk`, `claude-opus-5-5`):
+- **Claude** (`@anthropic-ai/sdk`, `claude-haiku-5-5`):
   - **structured outputs** (JSON schema) for carts, receipts and Guard verdicts
   - **vision** for receipts
   - the **tool runner** for the Copilot agent
-  - **server-side refusal fallbacks** (`fallbacks: "default"`)
+  - Haiku stays on the selected model, with no automatic routing to pricier models
   - low effort for the latency-critical Guard and checkout calls
 
   Every AI feature has a deterministic fallback, so the payment path never waits on a model: the Guard shows the rule verdict instantly and Claude refines it a moment later.
@@ -98,13 +98,13 @@ Payd turns any phone into a PayPal terminal.
 
 ## AI tools used (required disclosure)
 
-- **Claude API (`claude-opus-5-5`, via `@anthropic-ai/sdk`)**, used at runtime for:
+- **Claude API (`claude-haiku-5-5`, via `@anthropic-ai/sdk`)**, used at runtime for:
   - voice/text checkout (structured outputs)
   - receipt extraction (vision + structured outputs)
   - Payd Guard risk review (structured outputs)
   - the Merchant Copilot agent (tool use via the SDK tool runner)
   - "Ask your ledger" natural language → AG Grid filters (structured outputs)
-  - server-side refusal fallbacks on every call
+  - Haiku-only runtime requests, with deterministic rule fallbacks where available
 - **Claude Code** was used as a coding assistant while building the project.
 
 ---

@@ -18,7 +18,7 @@ import { GRID_COLUMNS, GRID_SPEC_SCHEMA, gridSpecHeuristic, toGridState } from '
 
 export const events = new EventEmitter();
 
-export const MODEL = process.env.PAYD_MODEL || 'claude-opus-5-5';
+export const MODEL = process.env.PAYD_MODEL || 'claude-haiku-5-5';
 const hasKey = Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
 
 export let enabled = hasKey && process.env.PAYD_AI !== 'off';
@@ -30,9 +30,11 @@ export function configure(options) {
   enabled = Boolean(client);
 }
 
-// Server-side refusal fallback: if a request is declined, the API re-runs it on Anthropic's
-// recommended fallback model inside the same call.
-const FALLBACK = { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' };
+// Haiku stays on the selected low-cost model. Other explicitly configured models
+// can use Anthropic's server-side refusal fallback when supported.
+const FALLBACK = MODEL.startsWith('claude-haiku-')
+  ? {}
+  : { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' };
 
 export function status() {
   return { enabled, model: enabled ? MODEL : null };

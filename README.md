@@ -89,8 +89,8 @@ All in `server/ai.js`, using the official `@anthropic-ai/sdk`:
 - **Structured outputs** (`output_config.format: json_schema`) for checkout carts, receipt extraction (vision) and Guard verdicts. The responses are typed and validated, with no fragile parsing.
 - **Grid control**: "Ask your ledger" returns a JSON spec (column, op, value) that `server/gridquery.js` validates and converts into an AG Grid `filterModel` and column sort state.
 - **Tool runner** (`client.beta.messages.toolRunner`) for the Copilot agent with five tools: `sales_summary`, `list_transactions`, `ring_up`, `propose_refund`, `propose_payout`.
-- **Server-side refusal fallbacks** (`fallbacks: "default"`) so a declined request is retried on Anthropic's recommended fallback model inside the same call.
-- Default model `claude-opus-5-5` (override with `PAYD_MODEL`), low effort for the latency-sensitive Guard and checkout calls.
+- **Cost control**: Haiku requests stay on Haiku; they never route to a pricier model. Other explicitly configured models can use server-side refusal fallback when supported.
+- Default model `claude-haiku-5-5` (override with `PAYD_MODEL`), low effort for the latency-sensitive Guard and checkout calls.
 - **Every AI feature has a deterministic fallback** (`server/heuristics.js`). The app never blocks on the model: Guard shows the rule verdict instantly and Claude refines it a moment later.
 
 ## Sponsor tools
